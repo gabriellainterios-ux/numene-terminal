@@ -1,282 +1,345 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NUMENE TERMINAL</title>
-    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        /* БАЗОВЫЕ СТИЛИ ТЕРМИНАЛА */
+        :root {
+            --bg-color: #050505;
+            --primary: #00f3ff; /* Neon Cyan */
+            --alert: #ff003c;   /* Cyber Red */
+            --success: #0aff00; /* Matrix Green */
+            --dim: #004d52;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
-            font-family: 'JetBrains Mono', monospace;
-            background-color: #050505; /* Глубокий черный */
-            color: #00FF41; /* Матричный зеленый */
-            overflow-x: hidden; /* Запрет горизонтальной прокрутки */
-            -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку при клике */
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--primary);
+            font-family: 'Share Tech Mono', monospace;
+            /* Растягиваем на высоту окна Telegram */
+            height: 100vh;
+            height: var(--tg-viewport-height, 100vh);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
-        /* ЭФФЕКТ СКАНЕРА (Зеленая линия) */
-       .scan-line {
-            width: 100%;
-            height: 2px;
-            background: rgba(0, 255, 65, 0.5);
+        /* --- CRT EFFECT --- */
+        .scanlines {
             position: fixed;
-            top: 0;
-            left: 0;
-            animation: scan 3s linear infinite;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
             pointer-events: none;
-            z-index: 50;
-            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-        }
-        @keyframes scan {
-            0% { top: -10%; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { top: 110%; opacity: 0; }
+            z-index: 10;
         }
 
-        /* ЭФФЕКТ ГЛИТЧА (Помехи) */
-       .glitch-text {
+        .screen {
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
             position: relative;
-            animation: glitch 2s infinite;
-        }
-        @keyframes glitch {
-            0% { transform: skew(0deg); }
-            20% { transform: skew(-2deg); }
-            21% { transform: skew(2deg); }
-            22% { transform: skew(0deg); }
-            100% { transform: skew(0deg); }
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 2;
         }
 
-        /* КНОПКА (Киберпанк стиль) */
-       .btn-primary {
-            background: transparent;
-            color: #00FF41;
-            border: 1px solid #00FF41;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
+        .hidden { display: none !important; }
+
+        /* --- BOOT SCREEN --- */
+        #boot-text {
+            width: 100%;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: left;
+            padding: 40px;
+            color: var(--primary);
+            text-shadow: 0 0 5px var(--primary);
         }
-       .btn-primary:active {
-            background: #00FF41;
+
+        /* --- LOCK SCREEN --- */
+        .logo {
+            font-size: 36px;
+            letter-spacing: 6px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px var(--primary);
+            animation: glitch 3s infinite;
+        }
+
+        .status {
+            font-size: 12px;
+            color: var(--dim);
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+        }
+
+        .code-display {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .digit-box {
+            width: 50px;
+            height: 60px;
+            border: 1px solid var(--dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: var(--primary);
+            background: rgba(0, 243, 255, 0.05);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
+            transition: all 0.2s;
+        }
+
+        .digit-box.filled {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+            text-shadow: 0 0 10px var(--primary);
+        }
+
+        .digit-box.error {
+            border-color: var(--alert);
+            color: var(--alert);
+            box-shadow: 0 0 20px var(--alert);
+            animation: shake 0.4s;
+        }
+
+        .digit-box.success {
+            border-color: var(--success);
+            color: var(--success);
+            box-shadow: 0 0 20px var(--success);
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 280px;
+        }
+
+        .key {
+            height: 65px;
+            border: 1px solid var(--dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.1s;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .key:active {
+            background: var(--primary);
             color: #000;
-            box-shadow: 0 0 15px #00FF41;
-        }
-        
-        /* Стили для заблокированного состояния */
-       .locked-state {
-            filter: blur(4px);
-            opacity: 0.3;
-            pointer-events: none;
-            transition: all 0.8s ease;
-        }
-       .unlocked-state {
-            filter: blur(0);
-            opacity: 1;
-            pointer-events: all;
+            transform: scale(0.95);
+            box-shadow: 0 0 15px var(--primary);
         }
 
-        /* Анимация мигания курсора */
-       .cursor-blink {
-            animation: blink 1s step-end infinite;
+        /* --- SUCCESS SCREEN --- */
+        .access-msg {
+            font-size: 28px;
+            color: var(--success);
+            border: 2px solid var(--success);
+            padding: 20px 40px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            box-shadow: 0 0 30px var(--success);
+            text-shadow: 0 0 10px var(--success);
+            text-align: center;
+            animation: pulse 2s infinite;
         }
-        @keyframes blink { 50% { opacity: 0; } }
+
+        @keyframes glitch {
+            0% { text-shadow: 2px 0 var(--alert), -2px 0 var(--primary); }
+            5% { text-shadow: 0 0 0; }
+            100% { text-shadow: 0 0 0; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 20px var(--success); }
+            50% { box-shadow: 0 0 40px var(--success); }
+            100% { box-shadow: 0 0 20px var(--success); }
+        }
     </style>
 </head>
-<body class="antialiased min-h-screen flex flex-col selection:bg-green-900 selection:text-white">
+<body>
 
-    <div class="scan-line"></div>
+    <div class="scanlines"></div>
 
-    <header class="p-4 border-b border-green-900/50 flex justify-between items-center sticky top-0 bg-[#050505]/90 z-40 backdrop-blur-sm">
-        <div class="text-lg font-bold tracking-widest glitch-text">NUMENE<span class="cursor-blink">_</span></div>
-        <div id="status-indicator" class="text-[10px] border border-red-900 px-2 py-1 text-red-500 bg-red-900/10">
-            NO SIGNAL
+    <div id="boot-screen" class="screen">
+        <div id="boot-text"></div>
+    </div>
+
+    <div id="lock-screen" class="screen hidden">
+        <div class="logo">NUMENE</div>
+        <div class="status">PROTOCOL [DUAT] // LOCKED</div>
+
+        <div class="code-display">
+            <div class="digit-box" id="d1"></div>
+            <div class="digit-box" id="d2"></div>
+            <div class="digit-box" id="d3"></div>
         </div>
-    </header>
 
-    <main class="flex-grow p-4 relative flex flex-col gap-6">
-        
-        <section id="auth-section" class="border border-green-900 bg-green-900/5 p-4 relative overflow-hidden transition-all duration-500">
-            <div class="absolute top-0 right-0 bg-green-900/20 px-2 text-[9px] text-green-600">SYS.AUTH.V.2.0</div>
-            
-            <div class="space-y-2 mb-6 text-sm">
-                <p>> DETECTING HARDWARE KEY...</p>
-                <p id="console-line-2" class="opacity-50">> WAITING FOR NFC SIGNAL...</p>
-            </div>
+        <div class="keypad">
+            <div class="key" onclick="press(1)">1</div>
+            <div class="key" onclick="press(2)">2</div>
+            <div class="key" onclick="press(3)">3</div>
+            <div class="key" onclick="press(4)">4</div>
+            <div class="key" onclick="press(5)">5</div>
+            <div class="key" onclick="press(6)">6</div>
+            <div class="key" onclick="press(7)">7</div>
+            <div class="key" onclick="press(8)">8</div>
+            <div class="key" onclick="press(9)">9</div>
+            <div class="key" style="border:none; cursor:default;"></div>
+            <div class="key" onclick="press(0)">0</div>
+            <div class="key" style="color: var(--alert); border-color: var(--alert);" onclick="clearCode()">C</div>
+        </div>
+    </div>
 
-            <button onclick="manualUnlock()" class="btn-primary w-full py-4 font-bold text-xs hover:bg-green-900/20">
-               
-            </button>
-            <p class="text-[10px] text-gray-600 mt-2 text-center">TAP PHONE TO PCB KEY TO BYPASS</p>
-        </section>
-
-        <section id="shop-section" class="hidden opacity-0 transition-opacity duration-1000 transform translate-y-4">
-            
-            <div class="flex justify-between items-end mb-2 pb-2 border-b border-gray-800">
-                <div class="text-[10px] text-gray-500">DROP: PROTOCOL_ORIGIN</div>
-                <div class="text-[10px] text-green-500 animate-pulse">LIVE STOCK: <span id="stock-count">48</span>/50</div>
-            </div>
-
-            <div class="border border-gray-800 bg-[#0a0a0a]">
-                <div class="aspect-[4/5] bg-gray-900 relative overflow-hidden group">
-                    <div class="absolute inset-0 flex items-center justify-center text-gray-700 text-xs tracking-widest">
-                       
-                    </div>
-                    <img src="https://dummyimage.com/600x800/111/0f0.png&text=THE+SHELL" 
-                         class="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-luminosity group-hover:opacity-100 transition-opacity duration-500">
-                    
-                    <div class="absolute top-2 left-2 bg-black border border-green-900 text-green-500 text-[9px] px-2 py-1">
-                        FARADAY_SHIELD_INSIDE
-                    </div>
-                </div>
-
-                <div class="p-4 space-y-4">
-                    <div>
-                        <h2 class="text-xl font-bold text-white mb-1">THE SHELL</h2>
-                        <p class="text-xs text-gray-500">HEAVYWEIGHT COTTON // 500GSM</p>
-                        <p class="text-xs text-gray-500">SIGNAL BLOCKING POCKET</p>
-                    </div>
-
-                    <div class="flex items-center justify-between pt-2 border-t border-gray-800">
-                        <span class="text-lg font-bold">24,900 ₽</span>
-                        <button onclick="buyItem()" class="bg-[#00FF41] text-black font-bold px-6 py-2 text-sm hover:bg-white transition-colors">
-                            ACQUIRE >
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="mt-auto pt-8 text-[10px] text-gray-600 font-mono space-y-1">
-            <p>> USER_ID: <span id="user-id" class="text-gray-400">...</span></p>
-            <p>> CONNECTION: <span class="text-green-900">SECURE (TLS 1.3)</span></p>
-            <p>> SERVER TIME: <span id="timer">00:00:00</span></p>
-        </section>
-
-    </main>
+    <div id="success-screen" class="screen hidden">
+        <div class="access-msg">ACCESS<br>GRANTED</div>
+        <p style="margin-top: 30px; text-align: center; color: #aaa; font-size: 12px;">
+            OPERATOR: UNIT-01<br>
+            BALANCE: 500 $NUMA<br><br>
+            WELCOME TO THE RESISTANCE.
+        </p>
+    </div>
 
     <script>
-        // 1. Инициализация Telegram WebApp
+        // --- TELEGRAM INTEGRATION ---
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Раскрыть на весь экран
+
+        // Сообщаем телеграму, что приложение готово
+        tg.ready();
         
-        // Настраиваем цвета под тему (чтобы не было белых полос)
-        tg.setHeaderColor('#050505');
+        // Разворачиваем на весь экран
+        tg.expand(); 
+        
+        // Красим шапку телеграма в черный
+        tg.setHeaderColor('#050505'); 
         tg.setBackgroundColor('#050505');
 
-        // 2. Получение данных пользователя
-        const userIdElement = document.getElementById('user-id');
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            userIdElement.innerText = tg.initDataUnsafe.user.id;
-        } else {
-            userIdElement.innerText = "GHOST_MODE";
-        }
-
-        // 3. Часы (для атмосферы)
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('timer').innerText = now.toISOString().split('T').[1]split('.');
-        }, 1000);
-
-        // 4. ГЛАВНАЯ ЛОГИКА: Проверка, как открыли приложение
-        // start_param передается, если открыли по ссылке t.me/bot?startapp=...
-        function checkStartParam() {
-            const startParam = tg.initDataUnsafe.start_param;
-            
-            // Если в ссылке есть кодовое слово 'key_activated' (зашитое в NFC метку)
-            if (startParam === 'key_activated') {
-                console.log("Hardware Key Detected!");
-                unlockInterface(true); // Мгновенная разблокировка
-            } else {
-                console.log("Manual Login Required");
-                // Ничего не делаем, ждем нажатия кнопки
+        // Функция для правильной вибрации (Haptics)
+        function haptic(style) {
+            if (tg.HapticFeedback) {
+                if (style === 'error') tg.HapticFeedback.notificationOccurred('error');
+                else if (style === 'success') tg.HapticFeedback.notificationOccurred('success');
+                else tg.HapticFeedback.impactOccurred(style); 
+            } else if (navigator.vibrate) {
+                navigator.vibrate(20); // Фолбэк для браузера
             }
         }
 
-        // Функция разблокировки интерфейса
-        function unlockInterface(isInstant) {
-            const status = document.getElementById('status-indicator');
-            const authSection = document.getElementById('auth-section');
-            const shopSection = document.getElementById('shop-section');
+        // --- LOGIC ---
+        let inputCode = "";
+        const CORRECT_CODE = "425"; // КОД ВХОДА
+        
+        const logs = [
+            "INITIALIZING KERNEL...",
+            "CONNECTING TO SECTOR 77...",
+            "CHECKING BIOMETRICS... FAILED",
+            "PHYSICAL KEY REQUIRED.",
+            "SYSTEM READY."
+        ];
 
-            // Функция смены статуса
-            const setVerified = () => {
-                status.innerText = "KEY VERIFIED";
-                status.className = "text-[10px] border border-[#00FF41] px-2 py-1 text-black bg-[#00FF41] font-bold shadow-[0_0_10px_#00FF41]";
+        // 1. BOOT ANIMATION
+        window.onload = function() {
+            let container = document.getElementById('boot-text');
+            let i = 0;
+            function printLog() {
+                if (i < logs.length) {
+                    container.innerHTML += "> " + logs[i] + "<br>";
+                    haptic('light');
+                    i++;
+                    setTimeout(printLog, 600);
+                } else {
+                    setTimeout(() => {
+                        document.getElementById('boot-screen').classList.add('hidden');
+                        document.getElementById('lock-screen').classList.remove('hidden');
+                    }, 1000);
+                }
+            }
+            printLog();
+        };
+
+        // 2. KEYPAD LOGIC
+        function press(num) {
+            if (inputCode.length < 3) {
+                inputCode += num;
+                updateDisplay();
+                haptic('medium');
                 
-                // Скрываем блок входа
-                authSection.style.display = 'none';
+                if (inputCode.length === 3) {
+                    setTimeout(checkCode, 300);
+                }
+            }
+        }
+
+        function clearCode() {
+            inputCode = "";
+            updateDisplay();
+            haptic('heavy');
+        }
+
+        function updateDisplay() {
+            for (let i = 1; i <= 3; i++) {
+                const box = document.getElementById(`d${i}`);
+                if (inputCode[i-1]) {
+                    box.innerText = "*"; 
+                    box.classList.add('filled');
+                } else {
+                    box.innerText = "";
+                    box.classList.remove('filled');
+                }
+                box.classList.remove('error');
+            }
+        }
+
+        function checkCode() {
+            if (inputCode === CORRECT_CODE) {
+                // SUCCESS
+                haptic('success');
+                document.querySelectorAll('.digit-box').forEach(b => b.classList.add('success'));
                 
-                // Показываем магазин
-                shopSection.classList.remove('hidden');
-                // Небольшая задержка для CSS анимации opacity
                 setTimeout(() => {
-                    shopSection.classList.remove('opacity-0');
-                    shopSection.classList.remove('translate-y-4');
-                }, 50);
-
-                // Вибрация успеха (если поддерживается)
-                if (tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            };
-
-            if (isInstant) {
-                setVerified();
+                    document.getElementById('lock-screen').classList.add('hidden');
+                    document.getElementById('success-screen').classList.remove('hidden');
+                }, 800);
             } else {
-                // Имитация задержки "сканирования" для ручного режима
-                setTimeout(setVerified, 1500);
+                // ERROR
+                haptic('error');
+                document.querySelectorAll('.digit-box').forEach(b => b.classList.add('error'));
+                
+                setTimeout(() => {
+                    inputCode = "";
+                    updateDisplay();
+                }, 600);
             }
         }
-
-        // Ручной вход (Кнопка "INITIATE MANUAL SCAN")
-        function manualUnlock() {
-            const btn = document.querySelector('button');
-            const consoleLine = document.getElementById('console-line-2');
-            
-            // Анимация текста
-            btn.innerText = "SCANNING...";
-            btn.classList.add('animate-pulse');
-            consoleLine.innerText = "> HANDSHAKE INITIATED...";
-            consoleLine.classList.remove('opacity-50');
-            consoleLine.classList.add('text-white');
-
-            // Вибрация нажатия
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('medium');
-            }
-
-            unlockInterface(false);
-        }
-
-        // Логика покупки
-        function buyItem() {
-            if (tg.HapticFeedback) {
-                tg.HapticFeedback.selectionChanged();
-            }
-            
-            // Показываем нативное подтверждение Telegram
-            tg.showPopup({
-                title: 'CONFIRM ORDER',
-                message: 'Initiate secure transaction for THE SHELL (Protocol: Origin)?\nPrice: 24,900 RUB',
-                buttons:
-            }, function(btnId) {
-                if (btnId === 'buy') {
-                    // Здесь в будущем будет вызов платежа (Invoice)
-                    tg.showAlert('Payment Gateway Initiated.\n(Demo Mode)');
-                }
-            });
-        }
-
-        // Запускаем проверку при старте
-        checkStartParam();
-
     </script>
 </body>
 </html>
