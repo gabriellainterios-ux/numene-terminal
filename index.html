@@ -111,61 +111,83 @@
 
     </main>
 
-    <script>
-        // Init Telegram WebApp
+   <script>
+        // 1. Инициализация Telegram WebApp
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Naive full screen
-        
-        // Theme Params
+        tg.expand(); // Раскрываем на весь экран
+
+        // Настройка цветов под тему
         document.body.style.backgroundColor = tg.themeParams.bg_color |
 
 | '#050505';
-        
-        // Set User ID if available
+
+        // 2. Получаем ID пользователя
         const userIdSpan = document.getElementById('user-id');
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userIdSpan.innerText = tg.initDataUnsafe.user.id;
         } else {
-            userIdSpan.innerText = "ANONYMOUS";
+            userIdSpan.innerText = "ANONYMOUS_GHOST";
         }
 
-        // Simulate NFC Scanning / Verification Logic
-        function simulateScan() {
+        // 3. Логика АВТО-ЗАПУСКА (NFC Detection)
+        // Мы проверяем, есть ли в ссылке параметр start_param
+        const startParam = tg.initDataUnsafe.start_param;
+
+        if (startParam === 'key_activated') {
+            // Если параметр есть - пропускаем анимацию сканирования и сразу даем доступ
+            console.log("Hardware Key Detected!");
+            unlockInterface(true); 
+        }
+
+        // Функция разблокировки (с анимацией или без)
+        function unlockInterface(instant = false) {
             const btn = document.querySelector('.btn-primary');
-            btn.innerText = "SCANNING...";
-            btn.classList.add('animate-pulse');
-            
-            // Artificial delay to simulate NFC read
-            setTimeout(() => {
-                btn.innerText = "ACCESS GRANTED";
-                btn.classList.remove('animate-pulse');
-                btn.classList.remove('btn-primary');
-                btn.classList.add('bg-gray-800', 'text-gray-500', 'border-gray-800', 'cursor-not-allowed');
-                btn.disabled = true;
+            const status = document.getElementById('status-indicator');
+            const shop = document.getElementById('shop-section');
+            const authSection = document.getElementById('auth-section');
 
-                // Update UI Status
-                const status = document.getElementById('status-indicator');
-                status.innerText = "OPERATOR VERIFIED";
+            if (instant) {
+                // Мгновенный доступ (когда пришли по NFC)
+                authSection.style.display = 'none'; // Скрываем кнопку сканирования
+                status.innerText = "KEY DETECTED";
                 status.className = "text-xs border border-green-500 px-2 py-1 bg-green-500 text-black font-bold glitch-effect";
-
-                // Reveal Shop
-                const shop = document.getElementById('shop-section');
-                shop.classList.remove('hidden');
-                // Small timeout to allow display:block to apply before opacity transition
-                setTimeout(() => shop.classList.remove('opacity-0'), 50);
                 
-                // Haptic feedback
-                if(tg.HapticFeedback) {
-                    tg.HapticFeedback.notificationOccurred('success');
-                }
-            }, 1500);
+                shop.classList.remove('hidden');
+                shop.classList.remove('opacity-0');
+                
+                // Вибрация успеха
+                if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            } else {
+                // Имитация сканирования (если нажали кнопку вручную)
+                btn.innerText = "SCANNING...";
+                btn.classList.add('animate-pulse');
+                
+                setTimeout(() => {
+                    btn.innerText = "ACCESS GRANTED";
+                    btn.classList.remove('animate-pulse', 'btn-primary');
+                    btn.classList.add('bg-gray-800', 'text-gray-500', 'border-gray-800', 'cursor-not-allowed');
+                    
+                    status.innerText = "OPERATOR VERIFIED";
+                    status.className = "text-xs border border-green-500 px-2 py-1 bg-green-500 text-black font-bold glitch-effect";
+
+                    shop.classList.remove('hidden');
+                    setTimeout(() => shop.classList.remove('opacity-0'), 50);
+                    
+                    if(tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+                }, 1500);
+            }
         }
 
-        // Main Button Logic (Optional)
+        // Привязываем ручное нажатие (для тестов)
+        function simulateScan() {
+            unlockInterface(false);
+        }
+
+        // Настройка главной кнопки (по желанию)
         tg.MainButton.setText("CHECKOUT");
         tg.MainButton.textColor = "#000000";
         tg.MainButton.color = "#00FF41";
-        // tg.MainButton.show(); // Show only when cart has items
     </script>
 </body>
 </html>
+
