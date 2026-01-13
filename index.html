@@ -268,4 +268,128 @@
 
           <div class="terminal" aria-label="Terminal">
             <div class="bootline">
-              <span class="prompt">neter@duat</span>:
+              <span class="prompt">neter@duat</span>:<span style="color:rgba(232,247,255,.75)">~</span>$ init_session
+            </div>
+            <div class="bootline" style="margin-top:6px;">
+              Auth: <span style="color:rgba(0,255,178,.95)">PENDING</span> — scan sleeve later (next step).
+            </div>
+            <div class="bootline" style="margin-top:6px;">
+              Quest: <span style="color:rgba(255,45,85,.95)">DECRYPT</span> — glow patch + PCB stencil.
+            </div>
+
+            <div class="row">
+              <input id="code" class="input" placeholder="Enter code (e.g. 4-2-4)" inputmode="numeric" />
+              <button id="submit" class="btn small" type="button">VERIFY</button>
+            </div>
+
+            <div id="result" class="bootline" style="margin-top:10px; color:rgba(232,247,255,.85)"></div>
+            <div class="bootline" style="margin-top:10px;">
+              <span class="prompt">neter@duat</span>$ <span class="caret"></span>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <button id="back" class="btn" type="button" style="background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.10)">
+              ← Back to Boot
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+  // --- Telegram WebApp init (безопасно: если открыли не в Telegram — просто пропустит) ---
+  const tg = window.Telegram?.WebApp;
+
+  function initTelegramUI(){
+    if(!tg) return;
+    try{
+      tg.ready();
+      tg.expand(); // максимально раскрыть миниапп
+      tg.setHeaderColor?.('#000000');
+      tg.setBackgroundColor?.('#000000');
+
+      // чтобы не было жестов "свайп вниз закрыть" на iOS (иногда помогает)
+      tg.disableVerticalSwipes?.();
+    } catch(e) {}
+  }
+
+  // --- Boot typing effect ---
+  const bootlog = document.getElementById('bootlog');
+  const lines = [
+    "NUMENE // N.E.T.E.R OS",
+    "loading: protocol [DUAT] ...",
+    "decryptor: online",
+    "integrity: OK",
+    "gate: awaiting operator input",
+  ];
+
+  function typeLines(el, arr){
+    let i=0, j=0;
+    function step(){
+      if(i >= arr.length) return;
+      const line = arr[i];
+      el.textContent += line[j] ?? "";
+      j++;
+      if(j > line.length){
+        el.textContent += "\n";
+        i++; j=0;
+      }
+      setTimeout(step, j===0 ? 180 : 18);
+    }
+    step();
+  }
+
+  // --- Screen navigation ---
+  const boot = document.getElementById('boot');
+  const term = document.getElementById('term');
+  const terminalBtn = document.getElementById('terminalBtn');
+  const backBtn = document.getElementById('back');
+
+  function show(screen){
+    boot.classList.remove('active');
+    term.classList.remove('active');
+    screen.classList.add('active');
+    // лёгкая вибрация в Telegram (если разрешено)
+    tg?.HapticFeedback?.impactOccurred?.('light');
+  }
+
+  terminalBtn.addEventListener('click', () => show(term));
+  backBtn.addEventListener('click', () => show(boot));
+
+  // --- Verify demo (потом заменим на вашу логику/сервер/бот) ---
+  const submit = document.getElementById('submit');
+  const codeInput = document.getElementById('code');
+  const result = document.getElementById('result');
+
+  submit.addEventListener('click', () => {
+    const v = (codeInput.value || "").trim();
+    if(!v){
+      result.textContent = "ERR: empty code. Try again.";
+      tg?.HapticFeedback?.notificationOccurred?.('error');
+      return;
+    }
+    // Демо-логика: код 4-2-4 — успех
+    if(v.replace(/\s/g,'') === "4-2-4"){
+      result.textContent = "OK: Verified Operator ✅ — (next: unlock chat / tokens)";
+      tg?.HapticFeedback?.notificationOccurred?.('success');
+    } else {
+      result.textContent = "DENIED: wrong code ❌";
+      tg?.HapticFeedback?.notificationOccurred?.('error');
+    }
+  });
+
+  // --- PWA service worker ---
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+
+  initTelegramUI();
+  typeLines(bootlog, lines);
+</script>
+</body>
+</html>
