@@ -1,1 +1,8 @@
-
+{
+  "name": "NUMENE // N.E.T.E.R OS",
+  "short_name": "NUMENE",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}
