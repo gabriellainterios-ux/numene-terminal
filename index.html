@@ -11,7 +11,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NUMENE">
-  <!-- (иконку добавим позже, пока можно без неё) -->
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -33,6 +32,7 @@
     html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
     a{color:inherit}
     button{font:inherit}
+    ::selection{ background: rgba(0,255,178,.22); }
 
     /* Background grid + noise */
     .bg{
@@ -164,11 +164,25 @@
       95% { filter:none; transform:none; }
     }
 
-    /* Screens */
-    .screen{ display:none; }
-    .screen.active{ display:block; }
+    /* Screens (animated) */
+    .screen{
+      display:block;
+      opacity:0;
+      transform: translateY(10px);
+      pointer-events:none;
+      height:0;
+      overflow:hidden;
+      transition: opacity .28s ease, transform .28s ease;
+    }
+    .screen.active{
+      opacity:1;
+      transform: translateY(0);
+      pointer-events:auto;
+      height:auto;
+      overflow:visible;
+    }
 
-    /* Boot animation */
+    /* Boot / log */
     .bootline{
       font-size: 12px;
       color: rgba(232,247,255,.82);
@@ -190,6 +204,32 @@
       100%{ transform: translateX(60%); opacity:.2 }
     }
 
+    /* Progress bar (cinematic boot) */
+    .progressWrap{
+      margin-top: 10px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(0,255,178,.14);
+      border-radius: 999px;
+      overflow:hidden;
+      height: 10px;
+      position:relative;
+    }
+    .progressBar{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(0,255,178,.25), rgba(0,255,178,.92), rgba(255,45,85,.45));
+      box-shadow: 0 0 18px rgba(0,255,178,.20);
+      transition: width .12s ease;
+    }
+    .progressText{
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(232,247,255,.72);
+      letter-spacing: .08em;
+      display:flex;
+      justify-content:space-between;
+    }
+
     /* Terminal */
     .terminal{
       background: rgba(0,0,0,.35);
@@ -198,6 +238,7 @@
       padding: 12px;
       min-height: 260px;
       box-shadow: inset 0 0 30px rgba(0,255,178,.06);
+      position:relative;
     }
     .prompt{ color: rgba(0,255,178,.95); }
     .caret{
@@ -223,6 +264,47 @@
       background: rgba(255,45,85,.10);
       border-color: rgba(255,45,85,.25);
     }
+
+    /* Cinematic overlays */
+    .overlay{
+      position:fixed; inset:0;
+      pointer-events:none;
+      opacity:0;
+      transition: opacity .12s ease;
+      z-index: 50;
+    }
+    .overlay.on{ opacity:1; }
+    .glitchFlash{
+      background:
+        linear-gradient(0deg, rgba(0,0,0,.92), rgba(0,0,0,.92)),
+        repeating-linear-gradient(
+          180deg,
+          rgba(0,255,178,.0) 0px,
+          rgba(0,255,178,.06) 2px,
+          rgba(255,45,85,.04) 3px,
+          rgba(0,0,0,0) 6px
+        );
+      mix-blend-mode: screen;
+      filter: contrast(140%) saturate(135%);
+    }
+    .redBlink{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.88);
+    }
+    .eye{
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--red);
+      box-shadow:
+        0 0 12px rgba(255,45,85,.6),
+        0 0 36px rgba(255,45,85,.35);
+      animation: eye 120ms ease-in-out infinite alternate;
+    }
+    @keyframes eye{
+      from{ transform: scale(.9); opacity:.85 }
+      to{ transform: scale(1.1); opacity:1 }
+    }
   </style>
 </head>
 
@@ -231,6 +313,10 @@
     <div class="grid"></div>
     <div class="noise"></div>
   </div>
+
+  <!-- overlays -->
+  <div id="glitchOverlay" class="overlay glitchFlash"></div>
+  <div id="redOverlay" class="overlay redBlink"><div class="eye"></div></div>
 
   <div class="wrap">
     <div class="card" role="application" aria-label="NUMENE Mini App">
@@ -249,14 +335,25 @@
         <!-- SCREEN: BOOT -->
         <section id="boot" class="screen active">
           <h1 class="title"><span class="glitch" data-text="PROTOCOL [DUAT]">PROTOCOL [DUAT]</span></h1>
-          <p class="muted">System boot. Reality decoder online. Tap <b>TERMINAL</b> to enter.</p>
+          <p class="muted">System boot. Connecting to DUAT…</p>
 
           <div class="terminal" aria-label="Boot log">
             <p id="bootlog" class="bootline"></p>
+
+            <div class="progressWrap" aria-label="Boot progress">
+              <div id="progressBar" class="progressBar"></div>
+            </div>
+            <div class="progressText">
+              <span id="progressLabel">CONNECTING…</span>
+              <span id="progressPct">0%</span>
+            </div>
+
             <div class="scan"></div>
+
+            <!-- You can still tap it (but auto-enter will happen in 0.9s) -->
             <button id="terminalBtn" class="btn" type="button">
               <div class="glitch" data-text="TERMINAL">TERMINAL</div>
-              <div class="hint">Enter / Quest / Code Input</div>
+              <div class="hint">Manual enter (optional)</div>
             </button>
           </div>
         </section>
@@ -300,30 +397,99 @@
   </div>
 
 <script>
-  // --- Telegram WebApp init (безопасно: если открыли не в Telegram — просто пропустит) ---
+  /**
+   * NUMENE Mini App (single-file)
+   * - Cinematic boot (0.9s)
+   * - Telegram MainButton (TERMINAL / VERIFY)
+   * - Haptics + synthesized beep (WebAudio) with autoplay-safe fallback
+   */
+
+  // --- Elements ---
+  const boot = document.getElementById('boot');
+  const term = document.getElementById('term');
+  const terminalBtn = document.getElementById('terminalBtn');
+  const backBtn = document.getElementById('back');
+
+  const bootlog = document.getElementById('bootlog');
+  const progressBar = document.getElementById('progressBar');
+  const progressPct = document.getElementById('progressPct');
+  const progressLabel = document.getElementById('progressLabel');
+
+  const submit = document.getElementById('submit');
+  const codeInput = document.getElementById('code');
+  const result = document.getElementById('result');
+
+  const glitchOverlay = document.getElementById('glitchOverlay');
+  const redOverlay = document.getElementById('redOverlay');
+
+  // --- Telegram WebApp init ---
   const tg = window.Telegram?.WebApp;
 
-  function initTelegramUI(){
-    if(!tg) return;
-    try{
-      tg.ready();
-      tg.expand(); // максимально раскрыть миниапп
-      tg.setHeaderColor?.('#000000');
-      tg.setBackgroundColor?.('#000000');
+  // --- Audio (beep) ---
+  // Important: mobile browsers often block sound until user interacts.
+  // We try to play; if blocked, we arm it to play on first tap/keypress.
+  let audioCtx = null;
+  function ensureAudio(){
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    return audioCtx;
+  }
 
-      // чтобы не было жестов "свайп вниз закрыть" на iOS (иногда помогает)
-      tg.disableVerticalSwipes?.();
-    } catch(e) {}
+  function beep({freq=880, duration=0.06, type='sine', gain=0.06} = {}){
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    // If suspended, resume may require user gesture.
+    const doPlay = () => {
+      try{
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type;
+        o.frequency.value = freq;
+        g.gain.value = gain;
+        o.connect(g);
+        g.connect(ctx.destination);
+
+        const t = ctx.currentTime;
+        // tiny fade-in/out to avoid clicks
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+        o.start(t);
+        o.stop(t + duration + 0.01);
+      } catch(e){}
+    };
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(doPlay).catch(() => armAudioOnce());
+    } else {
+      doPlay();
+    }
+  }
+
+  function armAudioOnce(){
+    const handler = () => {
+      document.removeEventListener('pointerdown', handler);
+      document.removeEventListener('keydown', handler);
+      try { audioCtx?.resume?.(); } catch(e){}
+      // a short confirmation beep on first gesture
+      beep({freq: 740, duration: 0.05, type:'square', gain:0.045});
+    };
+    document.addEventListener('pointerdown', handler, {once:true});
+    document.addEventListener('keydown', handler, {once:true});
   }
 
   // --- Boot typing effect ---
-  const bootlog = document.getElementById('bootlog');
   const lines = [
     "NUMENE // N.E.T.E.R OS",
     "loading: protocol [DUAT] ...",
     "decryptor: online",
     "integrity: OK",
-    "gate: awaiting operator input",
+    "gate: awaiting operator input"
   ];
 
   function typeLines(el, arr){
@@ -337,49 +503,151 @@
         el.textContent += "\n";
         i++; j=0;
       }
-      setTimeout(step, j===0 ? 180 : 18);
+      setTimeout(step, j===0 ? 110 : 14);
     }
     step();
   }
 
+  // --- Cinematic overlays ---
+  function flashGlitch(ms=90){
+    glitchOverlay.classList.add('on');
+    setTimeout(() => glitchOverlay.classList.remove('on'), ms);
+  }
+  function flashRed(ms=90){
+    redOverlay.classList.add('on');
+    setTimeout(() => redOverlay.classList.remove('on'), ms);
+  }
+
   // --- Screen navigation ---
-  const boot = document.getElementById('boot');
-  const term = document.getElementById('term');
-  const terminalBtn = document.getElementById('terminalBtn');
-  const backBtn = document.getElementById('back');
+  let autoTimer = null;
+
+  function setMainButtonFor(screen){
+    if(!tg?.MainButton) return;
+    if (screen === term) tg.MainButton.setText("VERIFY");
+    else tg.MainButton.setText("TERMINAL");
+    tg.MainButton.show();
+  }
 
   function show(screen){
     boot.classList.remove('active');
     term.classList.remove('active');
     screen.classList.add('active');
-    // лёгкая вибрация в Telegram (если разрешено)
+
+    setMainButtonFor(screen);
+
     tg?.HapticFeedback?.impactOccurred?.('light');
   }
 
-  terminalBtn.addEventListener('click', () => show(term));
-  backBtn.addEventListener('click', () => show(boot));
+  // --- Telegram UI init ---
+  function initTelegramUI(){
+    if(!tg) return;
+    try{
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor?.('#000000');
+      tg.setBackgroundColor?.('#000000');
+      tg.disableVerticalSwipes?.();
 
-  // --- Verify demo (потом заменим на вашу логику/сервер/бот) ---
-  const submit = document.getElementById('submit');
-  const codeInput = document.getElementById('code');
-  const result = document.getElementById('result');
+      setMainButtonFor(boot);
 
+      // ONE universal handler:
+      tg.MainButton.onClick(() => {
+        if (term.classList.contains("active")) submit.click();
+        else manualEnterTerminal();
+      });
+
+    } catch(e) {}
+  }
+
+  // --- Manual enter (button tap) ---
+  function manualEnterTerminal(){
+    if (autoTimer) clearTimeout(autoTimer);
+    // micro cinematic: glitch + beep + red blink then enter
+    flashGlitch(80);
+    beep({freq: 1040, duration: 0.05, type:'square', gain:0.045});
+    setTimeout(() => flashRed(70), 90);
+    setTimeout(() => show(term), 160);
+  }
+
+  terminalBtn.addEventListener('click', manualEnterTerminal);
+  backBtn.addEventListener('click', () => {
+    if (autoTimer) clearTimeout(autoTimer);
+    show(boot);
+  });
+
+  // --- Verify demo (заменишь потом на реальную проверку/сервер) ---
   submit.addEventListener('click', () => {
     const v = (codeInput.value || "").trim();
     if(!v){
       result.textContent = "ERR: empty code. Try again.";
       tg?.HapticFeedback?.notificationOccurred?.('error');
+      beep({freq: 220, duration: 0.08, type:'sine', gain:0.06});
       return;
     }
-    // Демо-логика: код 4-2-4 — успех
     if(v.replace(/\s/g,'') === "4-2-4"){
       result.textContent = "OK: Verified Operator ✅ — (next: unlock chat / tokens)";
       tg?.HapticFeedback?.notificationOccurred?.('success');
+      // success arpeggio
+      beep({freq: 660, duration: 0.05, type:'sine', gain:0.05});
+      setTimeout(() => beep({freq: 990, duration: 0.06, type:'sine', gain:0.05}), 70);
     } else {
       result.textContent = "DENIED: wrong code ❌";
       tg?.HapticFeedback?.notificationOccurred?.('error');
+      beep({freq: 180, duration: 0.10, type:'square', gain:0.05});
     }
   });
+
+  // --- Boot timeline (0.9s) ---
+  function setProgress(p, label){
+    const clamped = Math.max(0, Math.min(100, p));
+    progressBar.style.width = clamped + "%";
+    progressPct.textContent = Math.round(clamped) + "%";
+    if (label) progressLabel.textContent = label;
+  }
+
+  function bootCinematic900ms(){
+    // If audio is blocked, arm it to play on first tap
+    armAudioOnce();
+
+    // start typing log
+    typeLines(bootlog, lines);
+
+    // progress stages inside 900ms
+    const t0 = performance.now();
+
+    // subtle boot beeps (may be blocked until user interaction)
+    setTimeout(() => beep({freq: 520, duration: 0.03, type:'sine', gain:0.04}), 80);
+    setTimeout(() => beep({freq: 740, duration: 0.03, type:'sine', gain:0.04}), 160);
+    setTimeout(() => beep({freq: 880, duration: 0.03, type:'sine', gain:0.04}), 240);
+
+    setProgress(8,  "HANDSHAKE…");
+    setTimeout(() => setProgress(22, "PING DUAT…"), 120);
+    setTimeout(() => setProgress(41, "SYNC TIME…"), 240);
+    setTimeout(() => setProgress(63, "VERIFY CHANNEL…"), 420);
+
+    // glitch moment around 0.78s
+    setTimeout(() => {
+      setProgress(82, "BYPASS NOISE…");
+      flashGlitch(95);
+      beep({freq: 1200, duration: 0.04, type:'square', gain:0.04});
+      tg?.HapticFeedback?.impactOccurred?.('medium');
+    }, 780);
+
+    // red blink right before enter
+    setTimeout(() => {
+      setProgress(96, "LOCK ACQUIRED");
+      flashRed(85);
+      beep({freq: 980, duration: 0.03, type:'sine', gain:0.05});
+    }, 860);
+
+    // enter at 0.9s
+    autoTimer = setTimeout(() => {
+      setProgress(100, "ENTERING TERMINAL");
+      show(term);
+      // tiny confirmation beep (may still be blocked)
+      beep({freq: 660, duration: 0.04, type:'sine', gain:0.05});
+    }, 900);
+  }
 
   // --- PWA service worker ---
   if ('serviceWorker' in navigator) {
@@ -388,8 +656,9 @@
     });
   }
 
+  // Start
   initTelegramUI();
-  typeLines(bootlog, lines);
+  bootCinematic900ms();
 </script>
 </body>
 </html>
