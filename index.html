@@ -1,345 +1,271 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NUMENE TERMINAL</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #050505;
-            --primary: #00f3ff; /* Neon Cyan */
-            --alert: #ff003c;   /* Cyber Red */
-            --success: #0aff00; /* Matrix Green */
-            --dim: #004d52;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>NUMENE // N.E.T.E.R OS</title>
 
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NUMENE">
+  <!-- (иконку добавим позже, пока можно без неё) -->
 
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--primary);
-            font-family: 'Share Tech Mono', monospace;
-            /* Растягиваем на высоту окна Telegram */
-            height: 100vh;
-            height: var(--tg-viewport-height, 100vh);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-        /* --- CRT EFFECT --- */
-        .scanlines {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 10;
-        }
+  <style>
+    :root{
+      --bg:#05060a;
+      --panel:#0b0f18;
+      --grid:rgba(0,255,170,.08);
+      --neon:#00ffb2;
+      --red:#ff2d55;
+      --text:#e8f7ff;
+      --muted:rgba(232,247,255,.7);
+      --shadow: 0 0 14px rgba(0,255,178,.25), 0 0 40px rgba(0,255,178,.12);
+      --radius: 18px;
+    }
 
-        .screen {
-            width: 100%;
-            max-width: 400px;
-            height: 100%;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            z-index: 2;
-        }
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    a{color:inherit}
+    button{font:inherit}
 
-        .hidden { display: none !important; }
+    /* Background grid + noise */
+    .bg{
+      position:fixed; inset:0; overflow:hidden; z-index:-2;
+      background:
+        radial-gradient(1200px 600px at 20% 10%, rgba(0,255,178,.18), transparent 60%),
+        radial-gradient(900px 500px at 80% 30%, rgba(255,45,85,.12), transparent 60%),
+        linear-gradient(180deg, #02030a 0%, #05060a 60%, #02030a 100%);
+    }
+    .grid{
+      position:absolute; inset:-20%;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 44px 44px;
+      transform: perspective(800px) rotateX(64deg) translateY(-10%);
+      filter: blur(.2px);
+      opacity:.7;
+      animation: drift 9s linear infinite;
+    }
+    @keyframes drift{
+      0%{ transform: perspective(800px) rotateX(64deg) translateY(-10%) translateX(0) }
+      100%{ transform: perspective(800px) rotateX(64deg) translateY(-10%) translateX(-44px) }
+    }
+    .noise{
+      position:absolute; inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+      mix-blend-mode: overlay;
+      opacity:.10;
+      animation: noise 1.4s steps(2) infinite;
+    }
+    @keyframes noise { 0%{transform:translate(0,0)} 100%{transform:translate(-12px, 10px)} }
 
-        /* --- BOOT SCREEN --- */
-        #boot-text {
-            width: 100%;
-            font-size: 14px;
-            line-height: 1.6;
-            text-align: left;
-            padding: 40px;
-            color: var(--primary);
-            text-shadow: 0 0 5px var(--primary);
-        }
+    /* Layout */
+    .wrap{
+      min-height:100%;
+      padding: 18px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .card{
+      width:min(520px, 100%);
+      background: linear-gradient(180deg, rgba(11,15,24,.92), rgba(6,8,14,.86));
+      border: 1px solid rgba(0,255,178,.18);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      background: radial-gradient(600px 280px at 30% 0%, rgba(0,255,178,.16), transparent 60%);
+      pointer-events:none;
+    }
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(0,255,178,.12);
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center;
+      letter-spacing:.12em;
+      font-weight:700;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      background: var(--neon);
+      box-shadow: 0 0 14px rgba(0,255,178,.9);
+      animation: blink 1.1s infinite;
+    }
+    @keyframes blink{ 0%,60%{opacity:1} 61%,100%{opacity:.25} }
 
-        /* --- LOCK SCREEN --- */
-        .logo {
-            font-size: 36px;
-            letter-spacing: 6px;
-            margin-bottom: 10px;
-            text-shadow: 0 0 15px var(--primary);
-            animation: glitch 3s infinite;
-        }
+    .body{
+      padding: 18px 16px 16px;
+    }
+    .title{
+      font-size: 20px;
+      line-height: 1.2;
+      margin: 0 0 8px;
+    }
+    .muted{
+      margin:0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
 
-        .status {
-            font-size: 12px;
-            color: var(--dim);
-            margin-bottom: 40px;
-            letter-spacing: 2px;
-        }
+    /* Buttons */
+    .btn{
+      width:100%;
+      border: 1px solid rgba(0,255,178,.25);
+      background: rgba(0,255,178,.10);
+      color: var(--text);
+      padding: 14px 14px;
+      border-radius: 14px;
+      cursor:pointer;
+      box-shadow: 0 0 0 rgba(0,0,0,0);
+      transform: translateZ(0);
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+      position:relative;
+      overflow:hidden;
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow: 0 0 24px rgba(0,255,178,.20); background: rgba(0,255,178,.14); }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+    .btn .hint{ font-size:12px; opacity:.75; margin-top:6px; }
 
-        .code-display {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
+    /* Glitch text */
+    .glitch{
+      position:relative;
+      display:inline-block;
+      text-transform: uppercase;
+      letter-spacing:.18em;
+    }
+    .glitch::before, .glitch::after{
+      content: attr(data-text);
+      position:absolute; inset:0;
+      opacity:.55;
+      pointer-events:none;
+    }
+    .glitch::before{ transform: translate(1px, 0); color: var(--neon); }
+    .glitch::after{ transform: translate(-1px, 0); color: var(--red); }
+    .glitchPulse{ animation: g 2.4s infinite; }
+    @keyframes g{
+      0%, 92%, 100% { filter:none; }
+      93% { filter: contrast(140%) saturate(130%); transform: skewX(-3deg); }
+      94% { filter: contrast(190%) saturate(160%); transform: skewX(3deg); }
+      95% { filter:none; transform:none; }
+    }
 
-        .digit-box {
-            width: 50px;
-            height: 60px;
-            border: 1px solid var(--dim);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            color: var(--primary);
-            background: rgba(0, 243, 255, 0.05);
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
-            transition: all 0.2s;
-        }
+    /* Screens */
+    .screen{ display:none; }
+    .screen.active{ display:block; }
 
-        .digit-box.filled {
-            border-color: var(--primary);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
-            text-shadow: 0 0 10px var(--primary);
-        }
+    /* Boot animation */
+    .bootline{
+      font-size: 12px;
+      color: rgba(232,247,255,.82);
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .scan{
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,255,178,.8), transparent);
+      box-shadow: 0 0 18px rgba(0,255,178,.25);
+      margin: 14px 0 12px;
+      animation: scan 1.2s linear infinite;
+    }
+    @keyframes scan{
+      0%{ transform: translateX(-60%); opacity:.2 }
+      50%{ opacity:1 }
+      100%{ transform: translateX(60%); opacity:.2 }
+    }
 
-        .digit-box.error {
-            border-color: var(--alert);
-            color: var(--alert);
-            box-shadow: 0 0 20px var(--alert);
-            animation: shake 0.4s;
-        }
+    /* Terminal */
+    .terminal{
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(0,255,178,.18);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 260px;
+      box-shadow: inset 0 0 30px rgba(0,255,178,.06);
+    }
+    .prompt{ color: rgba(0,255,178,.95); }
+    .caret{
+      display:inline-block; width:10px; height:16px; background: rgba(0,255,178,.85);
+      margin-left:6px; vertical-align:middle;
+      animation: caret 1s steps(2) infinite;
+    }
+    @keyframes caret{ 50%{opacity:0} }
 
-        .digit-box.success {
-            border-color: var(--success);
-            color: var(--success);
-            box-shadow: 0 0 20px var(--success);
-        }
-
-        .keypad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            width: 280px;
-        }
-
-        .key {
-            height: 65px;
-            border: 1px solid var(--dim);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: var(--primary);
-            cursor: pointer;
-            transition: all 0.1s;
-            background: rgba(0,0,0,0.3);
-        }
-
-        .key:active {
-            background: var(--primary);
-            color: #000;
-            transform: scale(0.95);
-            box-shadow: 0 0 15px var(--primary);
-        }
-
-        /* --- SUCCESS SCREEN --- */
-        .access-msg {
-            font-size: 28px;
-            color: var(--success);
-            border: 2px solid var(--success);
-            padding: 20px 40px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            box-shadow: 0 0 30px var(--success);
-            text-shadow: 0 0 10px var(--success);
-            text-align: center;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes glitch {
-            0% { text-shadow: 2px 0 var(--alert), -2px 0 var(--primary); }
-            5% { text-shadow: 0 0 0; }
-            100% { text-shadow: 0 0 0; }
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 20px var(--success); }
-            50% { box-shadow: 0 0 40px var(--success); }
-            100% { box-shadow: 0 0 20px var(--success); }
-        }
-    </style>
+    .row{ display:flex; gap:10px; margin-top: 12px; }
+    .input{
+      flex:1;
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(0,255,178,.18);
+      border-radius: 12px;
+      padding: 12px 12px;
+      color: var(--text);
+      outline:none;
+    }
+    .small{
+      padding: 12px;
+      width:auto;
+      background: rgba(255,45,85,.10);
+      border-color: rgba(255,45,85,.25);
+    }
+  </style>
 </head>
+
 <body>
+  <div class="bg">
+    <div class="grid"></div>
+    <div class="noise"></div>
+  </div>
 
-    <div class="scanlines"></div>
-
-    <div id="boot-screen" class="screen">
-        <div id="boot-text"></div>
-    </div>
-
-    <div id="lock-screen" class="screen hidden">
-        <div class="logo">NUMENE</div>
-        <div class="status">PROTOCOL [DUAT] // LOCKED</div>
-
-        <div class="code-display">
-            <div class="digit-box" id="d1"></div>
-            <div class="digit-box" id="d2"></div>
-            <div class="digit-box" id="d3"></div>
+  <div class="wrap">
+    <div class="card" role="application" aria-label="NUMENE Mini App">
+      <div class="topbar">
+        <div class="brand">
+          <span class="dot"></span>
+          <span class="glitch glitchPulse" data-text="NUMENE">NUMENE</span>
         </div>
-
-        <div class="keypad">
-            <div class="key" onclick="press(1)">1</div>
-            <div class="key" onclick="press(2)">2</div>
-            <div class="key" onclick="press(3)">3</div>
-            <div class="key" onclick="press(4)">4</div>
-            <div class="key" onclick="press(5)">5</div>
-            <div class="key" onclick="press(6)">6</div>
-            <div class="key" onclick="press(7)">7</div>
-            <div class="key" onclick="press(8)">8</div>
-            <div class="key" onclick="press(9)">9</div>
-            <div class="key" style="border:none; cursor:default;"></div>
-            <div class="key" onclick="press(0)">0</div>
-            <div class="key" style="color: var(--alert); border-color: var(--alert);" onclick="clearCode()">C</div>
+        <div style="font-size:12px; color:rgba(232,247,255,.65); letter-spacing:.14em;">
+          N.E.T.E.R OS
         </div>
-    </div>
+      </div>
 
-    <div id="success-screen" class="screen hidden">
-        <div class="access-msg">ACCESS<br>GRANTED</div>
-        <p style="margin-top: 30px; text-align: center; color: #aaa; font-size: 12px;">
-            OPERATOR: UNIT-01<br>
-            BALANCE: 500 $NUMA<br><br>
-            WELCOME TO THE RESISTANCE.
-        </p>
-    </div>
+      <div class="body">
 
-    <script>
-        // --- TELEGRAM INTEGRATION ---
-        const tg = window.Telegram.WebApp;
+        <!-- SCREEN: BOOT -->
+        <section id="boot" class="screen active">
+          <h1 class="title"><span class="glitch" data-text="PROTOCOL [DUAT]">PROTOCOL [DUAT]</span></h1>
+          <p class="muted">System boot. Reality decoder online. Tap <b>TERMINAL</b> to enter.</p>
 
-        // Сообщаем телеграму, что приложение готово
-        tg.ready();
-        
-        // Разворачиваем на весь экран
-        tg.expand(); 
-        
-        // Красим шапку телеграма в черный
-        tg.setHeaderColor('#050505'); 
-        tg.setBackgroundColor('#050505');
+          <div class="terminal" aria-label="Boot log">
+            <p id="bootlog" class="bootline"></p>
+            <div class="scan"></div>
+            <button id="terminalBtn" class="btn" type="button">
+              <div class="glitch" data-text="TERMINAL">TERMINAL</div>
+              <div class="hint">Enter / Quest / Code Input</div>
+            </button>
+          </div>
+        </section>
 
-        // Функция для правильной вибрации (Haptics)
-        function haptic(style) {
-            if (tg.HapticFeedback) {
-                if (style === 'error') tg.HapticFeedback.notificationOccurred('error');
-                else if (style === 'success') tg.HapticFeedback.notificationOccurred('success');
-                else tg.HapticFeedback.impactOccurred(style); 
-            } else if (navigator.vibrate) {
-                navigator.vibrate(20); // Фолбэк для браузера
-            }
-        }
+        <!-- SCREEN: TERMINAL -->
+        <section id="term" class="screen">
+          <h2 class="title"><span class="glitch" data-text="TERMINAL ACCESS">TERMINAL ACCESS</span></h2>
+          <p class="muted">Operator session started. Paste the code when you decrypt it.</p>
 
-        // --- LOGIC ---
-        let inputCode = "";
-        const CORRECT_CODE = "425"; // КОД ВХОДА
-        
-        const logs = [
-            "INITIALIZING KERNEL...",
-            "CONNECTING TO SECTOR 77...",
-            "CHECKING BIOMETRICS... FAILED",
-            "PHYSICAL KEY REQUIRED.",
-            "SYSTEM READY."
-        ];
-
-        // 1. BOOT ANIMATION
-        window.onload = function() {
-            let container = document.getElementById('boot-text');
-            let i = 0;
-            function printLog() {
-                if (i < logs.length) {
-                    container.innerHTML += "> " + logs[i] + "<br>";
-                    haptic('light');
-                    i++;
-                    setTimeout(printLog, 600);
-                } else {
-                    setTimeout(() => {
-                        document.getElementById('boot-screen').classList.add('hidden');
-                        document.getElementById('lock-screen').classList.remove('hidden');
-                    }, 1000);
-                }
-            }
-            printLog();
-        };
-
-        // 2. KEYPAD LOGIC
-        function press(num) {
-            if (inputCode.length < 3) {
-                inputCode += num;
-                updateDisplay();
-                haptic('medium');
-                
-                if (inputCode.length === 3) {
-                    setTimeout(checkCode, 300);
-                }
-            }
-        }
-
-        function clearCode() {
-            inputCode = "";
-            updateDisplay();
-            haptic('heavy');
-        }
-
-        function updateDisplay() {
-            for (let i = 1; i <= 3; i++) {
-                const box = document.getElementById(`d${i}`);
-                if (inputCode[i-1]) {
-                    box.innerText = "*"; 
-                    box.classList.add('filled');
-                } else {
-                    box.innerText = "";
-                    box.classList.remove('filled');
-                }
-                box.classList.remove('error');
-            }
-        }
-
-        function checkCode() {
-            if (inputCode === CORRECT_CODE) {
-                // SUCCESS
-                haptic('success');
-                document.querySelectorAll('.digit-box').forEach(b => b.classList.add('success'));
-                
-                setTimeout(() => {
-                    document.getElementById('lock-screen').classList.add('hidden');
-                    document.getElementById('success-screen').classList.remove('hidden');
-                }, 800);
-            } else {
-                // ERROR
-                haptic('error');
-                document.querySelectorAll('.digit-box').forEach(b => b.classList.add('error'));
-                
-                setTimeout(() => {
-                    inputCode = "";
-                    updateDisplay();
-                }, 600);
-            }
-        }
-    </script>
-</body>
-</html>
+          <div class="terminal" aria-label="Terminal">
+            <div class="bootline">
+              <span class="prompt">neter@duat</span>:
