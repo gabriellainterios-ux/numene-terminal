@@ -1,0 +1,112 @@
+/* Общие стили */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5e1a4; /* светло-бежевый фон */
+  color: #333333;            /* тёмно-графитовый текст */
+  overflow: hidden;
+}
+
+/* Экран загрузки (Boot) */
+#boot {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #111111; /* очень тёмный фон для "киношного" эффекта */
+  color: #ffffff;
+  transition: opacity 0.5s ease; /* для плавного исчезновения */
+}
+#boot h1 {
+  font-size: 4em;
+  letter-spacing: 0.2em;
+  margin: 0 0 20px;
+}
+.progress-bar {
+  width: 300px;
+  height: 10px;
+  border: 1px solid #ffffff;
+  margin-bottom: 10px;
+}
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background-color: #ffffff;
+  transition: width 0.1s ease;
+}
+#boot-text {
+  font-size: 1em;
+}
+
+/* Экран терминала */
+#terminal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-color: #111111;
+  color: #00ff88; /* ярко-зелёный текст (как у старого терминала) */
+  font-family: 'Courier New', Courier, monospace;
+  padding: 20px;
+  display: none;
+}
+#terminal pre {
+  font-size: 1em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+#cursor {
+  font-size: 1em;
+  animation: blink 1s step-start infinite;
+}
+
+/* Мерцание курсора */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Экран Puzzle (код доступа) */
+#puzzle {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-color: #f5e1a4; /* светло-бежевый фон */
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+#puzzle-content {
+  text-align: center;
+}
+#puzzle p {
+  font-size: 1.2em;
+  margin-bottom: 10px;
+}
+#puzzle input {
+  font-size: 1em;
+  padding: 10px;
+  border: 2px solid #333333;
+  background-color: transparent;
+  color: #333333;
+  margin-right: 5px;
+}
+#puzzle input:focus {
+  outline: none;
+  border-color: #000000;
+}
+#puzzle button {
+  font-size: 1em;
+  padding: 10px 15px;
+  border: none;
+  background-color: #333333;
+  color: #f5e1a4;
+  cursor: pointer;
+}
+#puzzle button:hover {
+  background-color: #000000;
+}
+#result {
+  margin-top: 10px;
+  font-weight: bold;
+}
